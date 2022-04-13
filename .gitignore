@@ -1,0 +1,10 @@
+*.pk
+*.iml
+
+/build/
+/.idea/
+
+/fift/Asm.fif
+/fift/TonUtil.fif
+
+/func/stdlib.fc

@@ -1,0 +1,6 @@
+contract:
+  data: fift/data_deploy.fif
+  func:
+    - func/contract.fc
+  tests:
+    - test/contract.fc

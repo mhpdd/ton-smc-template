@@ -1,0 +1,23 @@
+"TonUtil.fif" include
+"Asm.fif" include
+
+$1 parse-int =: hash
+
+cr
+"build/contract.pk" load-keypair
+constant private_key
+constant public_key
+
+"Private key: " type private_key Bx. cr
+"Public key.: " type public_key Bx. cr
+cr
+hash private_key ed25519_sign_uint =: signature
+"Signature..: " type signature Bx. cr
+cr
+"Signature separated" type cr
+signature 32 B| swap Bx. cr Bx. cr
+cr
+
+signature 32 B|
+".store_uint(0x" type swap Bx. ", 256)" type cr
+".store_uint(0x" type Bx. ", 256)" type cr

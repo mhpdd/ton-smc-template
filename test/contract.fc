@@ -1,0 +1,140 @@
+int get_public_key() method_id {
+    return 0x2AB484B68AD2A35DB5D32410C46689E4C08C53A281DD5DD030FB1C094C0955C4;
+}
+
+int get_default_seqno() method_id {
+    return 13;
+}
+
+int get_default_total() method_id {
+    return 42;
+}
+
+cell prepare_data(int seqno, int stored_total) method_id {
+    var public_key = get_public_key();
+    return begin_cell()
+        .store_uint(public_key, 256)
+        .store_uint(seqno, 32)
+        .store_uint(stored_total, 64)
+        .end_cell();
+}
+
+cell prepare_unsigned_message_body(int seqno, int n) impure method_id {
+    var message = begin_cell()
+        .store_uint(seqno, 32)
+        .store_uint(n, 32)
+        .end_cell();
+    var hash = cell_hash(message);
+    hash~dump();
+    return message;
+}
+
+builder prepare_external_message(int isRefBody) method_id {
+    return begin_cell()
+        .store_uint(0x44, 7)
+        .store_uint(0, 8)
+        .store_uint(16782884447476075665943993288327785421698030177908753026505264851344054759035, 256)
+        .store_grams(1000000)
+        .store_uint(0, 1)
+        .store_uint(isRefBody, 1);
+}
+
+(int, int, int) parse_data(cell data) method_id {
+    var ds = data.begin_parse();
+    var public_key = ds~load_uint(256);
+    var seqno = ds~load_uint(32);
+    var total = ds~load_uint(64);
+
+    return (public_key, seqno, total);
+}
+
+{- Tests -}
+{- Just should pass -}
+[int, tuple, cell, tuple, int] test_accept_data() method_id(0) {
+    int function_selector = -1;
+
+    cell data = prepare_data(get_default_seqno(), get_default_total());
+    cell message_to_sign = prepare_unsigned_message_body(get_default_seqno(), 42);
+    cell signed_message = begin_cell()
+        .store_uint(0x6C0BC195146ECC0944FF583A3BED3781900C112F64DE264A3EBE65565D50ECB4, 256)
+        .store_uint(0xD7466D64C4178F78D1660853234CE08EB314BCF98AAA995872F19326FDEB3C0E, 256)
+        .store_slice(message_to_sign.begin_parse())
+        .end_cell();
+
+    cell full_message = prepare_external_message(false)
+        .store_slice(signed_message.begin_parse())
+        .end_cell();
+
+    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+
+    return [function_selector, stack, data, get_c7(), null()];
+}
+
+_ test_accept(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(1) {
+    throw_if(exit_code, exit_code != 0);
+
+    var (public_key, seqno, total) = parse_data(data);
+    throw_if(200, public_key != get_public_key());
+    throw_if(201, seqno != (get_default_seqno() + 1));
+    throw_if(202, total != (get_default_total() + 42));
+}
+
+{- Invalid signature: must fail with code 100 -}
+[int, tuple, cell, tuple, int] test_invalid_signature_data() method_id(2) {
+    int function_selector = -1;
+
+    cell data = prepare_data(get_default_seqno(), get_default_total());
+    cell message_to_sign = prepare_unsigned_message_body(get_default_seqno(), 2);
+    cell signed_message = begin_cell()
+        .store_uint(0x944ED129E7B7617F8E9483EEA69C3C540D895990FE64E9A2112CBBA9BA5487C5, 256)
+        .store_uint(0x57D29EF0B02DFA79B8655C56D674EF704EC912B8481E132AB5DED48A68B46100, 256) ;; invalid signature
+        .store_slice(message_to_sign.begin_parse())
+        .end_cell();
+
+    cell full_message = prepare_external_message(false)
+        .store_slice(signed_message.begin_parse())
+        .end_cell();
+
+    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+
+    return [function_selector, stack, data, get_c7(), null()];
+}
+
+_ test_invalid_signature(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(3) {
+    var (public_key, seqno, total) = parse_data(data);
+    throw_if(200, public_key != get_public_key());
+    throw_if(201, seqno != get_default_seqno());
+    throw_if(202, total != get_default_total());
+
+    throw_if(exit_code, exit_code != 100);
+}
+
+{- Invalid seqno: must fail with code 101 -}
+[int, tuple, cell, tuple, int] test_invalid_seqno_data() method_id(4) {
+    int function_selector = -1;
+
+    cell data = prepare_data(get_default_seqno(), get_default_total());
+    cell message_to_sign = prepare_unsigned_message_body(get_default_seqno() + 1, 1); ;; invalid seqno
+    cell signed_message = begin_cell()
+        .store_uint(0x808888FF4EDCB972574ED970B9F7B980C6B18FC8874E536C57D7CB0267E65C69, 256)
+        .store_uint(0x7FD77ED733DB0C7906E48A2B74DB05BFEDF8F1FF1EF96DB2B2D2CE64A7AA020D, 256)
+        .store_slice(message_to_sign.begin_parse())
+        .end_cell();
+
+    cell full_message = prepare_external_message(false)
+        .store_slice(signed_message.begin_parse())
+        .end_cell();
+
+    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+
+    return [function_selector, stack, data, get_c7(), null()];
+}
+
+_ test_invalid_seqno(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(5) {
+    var (public_key, seqno, total) = parse_data(data);
+    throw_if(200, public_key != get_public_key());
+    throw_if(201, seqno != get_default_seqno());
+    throw_if(202, total != get_default_total());
+
+    throw_if(exit_code, exit_code != 101);
+}

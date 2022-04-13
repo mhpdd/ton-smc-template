@@ -1,0 +1,75 @@
+{- storage struct
+    public_key: uint256,
+    seqno: uint32,
+    total: uint64
+-}
+{- errors:
+    100 - invalid signature
+    101 - invalid seqno
+-}
+{- internal methods -}
+slice load_data_slice() impure inline {
+    return get_data().begin_parse();
+}
+
+() save_data(int public_key, int seqno, int total) impure inline {
+    var data = begin_cell()
+        .store_uint(public_key, 256)
+        .store_uint(seqno, 32)
+        .store_uint(total, 64)
+        .end_cell();
+    set_data(data);
+}
+
+{- get methods -}
+int seqno() impure method_id {
+    var ds = load_data_slice();
+    ds~load_uint(256);
+    return ds.preload_uint(32);
+}
+
+int get_stored_total() impure method_id {
+    var ds = load_data_slice();
+    ds~load_uint(256);
+    ds~load_uint(32);
+    return ds.preload_uint(64);
+}
+
+{- recv methods -}
+() recv_internal(slice msg_body) {
+
+}
+
+{- body struct:
+    signature: bits 512,
+    seqno: uint32,
+    n: uint32
+-}
+() recv_external({-int balance, int msg_value,-} cell msg_full, slice msg_body) impure {
+    ;; signature check
+    var signature = msg_body~load_bits(512);
+    var hash = slice_hash(msg_body);
+
+    var storage = load_data_slice();
+    var public_key = storage~load_uint(256);
+
+    throw_unless(100, check_signature(hash, signature, public_key));
+
+    ;; seqno check
+    var seqno = msg_body~load_uint(32);
+    var stored_seqno = storage~load_uint(32);
+
+    throw_if(101, seqno != stored_seqno);
+
+    ;; logic
+    var n = msg_body~load_uint(32);
+    var total = storage~load_uint(64);
+
+    ;; save
+    save_data(
+        public_key,
+        seqno + 1,
+        total + n
+    );
+    accept_message();
+}

@@ -1,0 +1,39 @@
+"TonUtil.fif" include
+"Asm.fif" include
+
+"build/contract" =: file-base
+
+file-base +".pk" load-keypair
+constant private_key
+constant public_key
+
+file-base +".addr"
+load-address
+2dup 2constant contract_addr
+
+<b
+    1 32 u, // seqno
+    2 32 u, // increment
+b> =: body
+
+body hashu private_key ed25519_sign_uint =: signature
+
+<b
+    signature B,
+    body <s s,
+b> =: signed_body
+
+<b
+    b{10} s, // tag: ext_in_msg_info
+    b{00} s, // tag: addr_none
+    b{10} s, // tag: addr_std
+    b{0} s, // Maybe Anycast, tag: nothing
+    contract_addr addr,
+    0 Gram,
+    b{0} s, // Maybe StateInit
+    b{0} s, // 0 - implace body, 1 - ref body
+    signed_body <s s,
+b>
+
+2 boc+>B
+saveboc
