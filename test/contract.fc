@@ -61,11 +61,7 @@ builder prepare_external_message(int isRefBody) method_id {
         .store_slice(message_to_sign.begin_parse())
         .end_cell();
 
-    cell full_message = prepare_external_message(false)
-        .store_slice(signed_message.begin_parse())
-        .end_cell();
-
-    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+    tuple stack = unsafe_tuple([signed_message.begin_parse()]);
 
     return [function_selector, stack, data, get_c7(), null()];
 }
@@ -79,7 +75,7 @@ _ test_accept(int exit_code, cell data, tuple stack, cell actions, int gas) meth
     throw_if(202, total != (get_default_total() + 42));
 }
 
-{- Invalid signature: must fail with code 100 -}
+{- Invalid signature: must fail with code 101 -}
 [int, tuple, cell, tuple, int] test_invalid_signature_data() method_id(2) {
     int function_selector = -1;
 
@@ -91,11 +87,7 @@ _ test_accept(int exit_code, cell data, tuple stack, cell actions, int gas) meth
         .store_slice(message_to_sign.begin_parse())
         .end_cell();
 
-    cell full_message = prepare_external_message(false)
-        .store_slice(signed_message.begin_parse())
-        .end_cell();
-
-    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+    tuple stack = unsafe_tuple([signed_message.begin_parse()]);
 
     return [function_selector, stack, data, get_c7(), null()];
 }
@@ -106,10 +98,10 @@ _ test_invalid_signature(int exit_code, cell data, tuple stack, cell actions, in
     throw_if(201, seqno != get_default_seqno());
     throw_if(202, total != get_default_total());
 
-    throw_if(exit_code, exit_code != 100);
+    throw_if(exit_code, exit_code != 101);
 }
 
-{- Invalid seqno: must fail with code 101 -}
+{- Invalid seqno: must fail with code 100 -}
 [int, tuple, cell, tuple, int] test_invalid_seqno_data() method_id(4) {
     int function_selector = -1;
 
@@ -121,11 +113,7 @@ _ test_invalid_signature(int exit_code, cell data, tuple stack, cell actions, in
         .store_slice(message_to_sign.begin_parse())
         .end_cell();
 
-    cell full_message = prepare_external_message(false)
-        .store_slice(signed_message.begin_parse())
-        .end_cell();
-
-    tuple stack = unsafe_tuple([full_message, signed_message.begin_parse()]);
+    tuple stack = unsafe_tuple([signed_message.begin_parse()]);
 
     return [function_selector, stack, data, get_c7(), null()];
 }
@@ -136,5 +124,5 @@ _ test_invalid_seqno(int exit_code, cell data, tuple stack, cell actions, int ga
     throw_if(201, seqno != get_default_seqno());
     throw_if(202, total != get_default_total());
 
-    throw_if(exit_code, exit_code != 101);
+    throw_if(exit_code, exit_code != 100);
 }

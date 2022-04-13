@@ -4,14 +4,10 @@
     total: uint64
 -}
 {- errors:
-    100 - invalid signature
-    101 - invalid seqno
+    100 - invalid seqno
+    101 - invalid signature
 -}
 {- internal methods -}
-slice load_data_slice() impure inline {
-    return get_data().begin_parse();
-}
-
 () save_data(int public_key, int seqno, int total) impure inline {
     var data = begin_cell()
         .store_uint(public_key, 256)
@@ -23,13 +19,13 @@ slice load_data_slice() impure inline {
 
 {- get methods -}
 int seqno() impure method_id {
-    var ds = load_data_slice();
+    var ds = get_data().begin_parse();
     ds~load_uint(256);
     return ds.preload_uint(32);
 }
 
 int get_stored_total() impure method_id {
-    var ds = load_data_slice();
+    var ds = get_data().begin_parse();
     ds~load_uint(256);
     ds~load_uint(32);
     return ds.preload_uint(64);
@@ -45,25 +41,21 @@ int get_stored_total() impure method_id {
     seqno: uint32,
     n: uint32
 -}
-() recv_external({-int balance, int msg_value,-} cell msg_full, slice msg_body) impure {
-    ;; signature check
+() recv_external({-int balance, int msg_value, cell msg_full,-} slice msg_body) impure {
+    ;; checks
     var signature = msg_body~load_bits(512);
-    var hash = slice_hash(msg_body);
+    var cs = msg_body;
+    var seqno = cs~load_uint(32);
 
-    var storage = load_data_slice();
-    var public_key = storage~load_uint(256);
+    var ds = get_data().begin_parse();
+    var (public_key, stored_seqno) = (ds~load_uint(256), ds~load_uint(32));
 
-    throw_unless(100, check_signature(hash, signature, public_key));
-
-    ;; seqno check
-    var seqno = msg_body~load_uint(32);
-    var stored_seqno = storage~load_uint(32);
-
-    throw_if(101, seqno != stored_seqno);
+    throw_unless(100, seqno == stored_seqno);
+    throw_unless(101, check_signature(slice_hash(msg_body), signature, public_key));
 
     ;; logic
-    var n = msg_body~load_uint(32);
-    var total = storage~load_uint(64);
+    var n = cs~load_uint(32);
+    var total = ds~load_uint(64);
 
     ;; save
     save_data(
